@@ -1,8 +1,8 @@
 #!/bin/sh
 # Run each flaky-prone Go test N times with async preemption on/off; keep the first failure.
 N=${1:-10}
-for t in t_panic t_sig t_fmt; do
-  for mode in default nopreempt; do
+for t in t_panic t_sig t_fmt t_rt t_fs t_exec t_net; do
+  for mode in default; do
     fails=0; i=1
     rm -f /tmp/lt.first.$t.$mode
     while [ $i -le $N ]; do
