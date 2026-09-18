@@ -37,6 +37,12 @@ try:
     child.sendline("./sig_poc ; echo SIG_RC_$?")
     child.expect(r"SIG_RC_\d+", timeout=120)
 
+    child.sendline("./io_poc ; echo IO_RC_$?")
+    child.expect(r"IO_RC_\d+", timeout=120)
+
+    child.sendline("./segv_poc ; echo SEGV_RC_$?")
+    child.expect(r"SEGV_RC_\d+", timeout=120)
+
     child.sendline("echo ALL_DONE_MARKER")
     child.expect("ALL_DONE_MARKER", timeout=20)
     time.sleep(1)
