@@ -143,6 +143,14 @@ echo "== mkhurd: dropped (not integer constants): $(tr '\n' ' ' < dropped.txt)"
 ./consts > vals.txt
 wc -l < vals.txt
 
+# POSIX errno on Hurd are Mach codes 0x4000xxxx. EKERN_*/EMIG_* (small or negative
+# Mach kernel/MIG codes) are not Errno values: they must not enter the Errno block
+# or the error table (negative Errno constants would not even compile).
+awk 'NR==FNR{e[$1]=1; next} ($1 in e) && $2 ~ /^0x4000[0-9a-f][0-9a-f][0-9a-f][0-9a-f]$/ {print $1}' \
+	errnames.txt vals.txt | sort -u > errmach.txt
+sort -u errmach.txt signames.txt > errsig.txt
+echo "== mkhurd: errno(mach)=$(wc -l < errmach.txt) other E*=$(( $(wc -l < errnames.txt) - $(wc -l < errmach.txt) ))"
+
 pad() { # stdin lines "NAME VALUE" -> "\tNAME = VALUE" aligned
 	awk '{n[NR]=$1; v[NR]=$2; if (length($1) > m) m = length($1)}
 	     END {for (i = 1; i <= NR; i++) printf "\t%-*s = %s\n", m, n[i], v[i]}'
@@ -159,7 +167,7 @@ pad() { # stdin lines "NAME VALUE" -> "\tNAME = VALUE" aligned
 enum { A = 'A', Z = 'Z', a = 'a', z = 'z' };
 static int errors[] = {
 EOF
-	while read -r n; do grep -qx "$n" dropped.txt || echo "	$n,"; done < errnames.txt
+	while read -r n; do grep -qx "$n" dropped.txt || echo "	$n,"; done < errmach.txt
 	cat <<'EOF'
 };
 static int signals[] = {
@@ -168,7 +176,7 @@ EOF
 	cat <<'EOF'
 };
 static int intcmp(const void *a, const void *b) { return *(int *)a - *(int *)b; }
-static int idx(int e) { return ((e >> 16) == 0x4000) ? (e & 0xffff) : e; }
+static int idx(int e) { return e & 0xffff; }
 int main(void) {
 	int i, e;
 	char buf[1024];
@@ -217,7 +225,7 @@ fi
 	echo
 	echo '// Errors (Mach error codes: 0x40000000 | n)'
 	echo 'const ('
-	awk 'NR==FNR{e[$1]=1; next} ($1 in e){print $1, "Errno(" $2 ")"}' errnames.txt vals.txt | pad
+	awk 'NR==FNR{e[$1]=1; next} ($1 in e){print $1, "Errno(" $2 ")"}' errmach.txt vals.txt | pad
 	echo ')'
 	echo
 	echo '// Signals'
@@ -247,6 +255,7 @@ cat > symprobe.c <<'EOF'
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -300,8 +309,9 @@ int main(void)
 	if (fd >= 0) {
 		char buf[4096];
 		off_t base = 0;
+		errno = 0;
 		ssize_t n = getdirentries(fd, buf, sizeof buf, &base);
-		printf("getdirentries n=%zd base=%ld\n", n, (long)base);
+		printf("getdirentries n=%zd errno=0x%x base=%ld\n", n, errno, (long)base);
 		ssize_t off = 0;
 		int k = 0;
 		while (off < n && k < 6) {
@@ -317,6 +327,34 @@ int main(void)
 		close(fd);
 	} else
 		printf("open(/) failed errno=0x%x\n", errno);
+
+	/* directory reading alternatives */
+	{
+		int fdx = open("/", O_RDONLY);
+		char *big = malloc(65536);
+		off_t b2 = 0;
+		errno = 0;
+		ssize_t n2 = getdirentries(fdx, big, 65536, &b2);
+		printf("getdirentries(O_RDONLY,64k) n=%zd errno=0x%x base=%ld sizeof(dirent)=%zu\n", n2, errno, (long)b2, sizeof(struct dirent));
+		if (n2 > 0) {
+			struct dirent *d0 = (struct dirent *)big;
+			printf("  first: fileno=%lu reclen=%u type=%u namlen=%u name=%s\n", (unsigned long)d0->d_fileno,
+				(unsigned)d0->d_reclen, (unsigned)d0->d_type, (unsigned)d0->d_namlen, d0->d_name);
+		}
+		int fd3 = openat(fdx, ".", O_RDONLY);
+		DIR *d3 = fd3 >= 0 ? fdopendir(fd3) : 0;
+		printf("openat(fd,\".\")=%d fdopendir=%p\n", fd3, (void *)d3);
+		struct dirent ent, *res = NULL;
+		int k2 = 0, rc = -1;
+		while (d3 && (rc = readdir_r(d3, &ent, &res)) == 0 && res && k2 < 6) {
+			printf("  READDIR_R fileno=%lu reclen=%u type=%u namlen=%u name=%s\n", (unsigned long)ent.d_fileno,
+				(unsigned)ent.d_reclen, (unsigned)ent.d_type, (unsigned)ent.d_namlen, ent.d_name);
+			k2++;
+		}
+		printf("readdir_r rc=%d entries=%d\n", rc, k2);
+		if (d3) closedir(d3);
+		close(fdx);
+	}
 
 	/* entropy */
 	unsigned char rb[16];
