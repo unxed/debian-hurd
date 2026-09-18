@@ -19,6 +19,7 @@
 #include <sys/types.h>
 #include <sys/ucontext.h>
 #include <time.h>
+#include <string.h>
 #include <unistd.h>
 
 #define P(name) printf(#name "=%ld\n", (long)(name))
@@ -27,6 +28,15 @@
 
 int main(void) {
     printf("--- constants ---\n");
+    P(CLOCK_REALTIME);
+    P(CLOCK_MONOTONIC);
+    {
+        struct timespec ts;
+        int r1 = clock_gettime(CLOCK_REALTIME, &ts);
+        printf("clock_gettime(CLOCK_REALTIME)=%d sec=%ld\n", r1, (long)ts.tv_sec);
+        int r2 = clock_gettime(CLOCK_MONOTONIC, &ts);
+        printf("clock_gettime(CLOCK_MONOTONIC)=%d sec=%ld nsec=%ld\n", r2, (long)ts.tv_sec, ts.tv_nsec);
+    }
     P(PTHREAD_CREATE_DETACHED);
     P(PTHREAD_CREATE_JOINABLE);
     P(ITIMER_REAL);
