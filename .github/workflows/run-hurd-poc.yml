@@ -37,7 +37,7 @@ jobs:
           sudo mount "${LOOPDEV}p2" /tmp/hurdroot
 
           sudo mkdir -p /tmp/hurdroot/root/poc
-          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/ctx_poc.c poc/mkhurd.sh poc/mkztypes_hurd.c poc/loop_tests.sh poc/Makefile /tmp/hurdroot/root/poc/
+          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/ctx_poc.c poc/pty_poc.c poc/mkhurd.sh poc/mkztypes_hurd.c poc/loop_tests.sh poc/Makefile /tmp/hurdroot/root/poc/
           sudo cp poc/hurdhello.bin /tmp/hurdroot/root/poc/hurdhello.bin
           sudo chmod +x /tmp/hurdroot/root/poc/hurdhello.bin
           if ls poc/gotests/*.bin >/dev/null 2>&1; then

@@ -51,6 +51,11 @@ try:
     child.sendline("./ctx_poc ; echo CTX_RC_$?")
     child.expect(r"CTX_RC_\d+", timeout=60)
 
+    child.sendline("ls -l /dev/ptmx /dev/pts /dev/ptyp0 /dev/ttyp0 /dev/tty 2>&1 | head -12; showtrans /dev/ptyp0 /dev/ttyp0 /dev/ptmx 2>&1 | head -5; echo PTYLS_DONE")
+    child.expect("PTYLS_DONE", timeout=30)
+    child.sendline("timeout -s KILL 60 ./pty_poc 2>&1 ; echo PTY_RC_$?")
+    child.expect(r"PTY_RC_\d+", timeout=90)
+
     child.sendline("./hurdhello.bin ; echo HURDHELLO_RC_$?")
     child.expect(r"HURDHELLO_RC_\d+", timeout=60)
 
