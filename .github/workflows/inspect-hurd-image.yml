@@ -1,0 +1,67 @@
+name: inspect-hurd-image
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reassemble image
+        run: |
+          cat hurd-image-parts/part_* > image.tar.gz
+          ls -lh image.tar.gz
+          tar tzf image.tar.gz
+          tar xzf image.tar.gz
+          ls -lh
+
+      - name: Show partition table
+        run: |
+          IMG=$(ls *.img)
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          sudo apt-get update -y >/dev/null
+          sudo apt-get install -y fdisk >/dev/null
+          sudo fdisk -l "$IMG"
+
+      - name: Loop-mount and inspect ext2 root
+        run: |
+          sudo losetup -fP "$IMG"
+          LOOPDEV=$(losetup -j "$IMG" | cut -d: -f1)
+          echo "LOOPDEV=$LOOPDEV" >> "$GITHUB_ENV"
+          lsblk "$LOOPDEV"
+          mkdir -p /tmp/hurdroot
+          sudo mount -o ro "${LOOPDEV}p2" /tmp/hurdroot
+          echo "=== / ==="
+          ls -la /tmp/hurdroot
+          echo "=== /root ==="
+          sudo ls -la /tmp/hurdroot/root || true
+          echo "=== /root/poc ==="
+          sudo ls -la /tmp/hurdroot/root/poc || true
+          echo "=== README.md ==="
+          sudo cat /tmp/hurdroot/root/poc/README.md 2>/dev/null || echo "(no README)"
+          echo "=== Makefile ==="
+          sudo cat /tmp/hurdroot/root/poc/Makefile 2>/dev/null || echo "(no Makefile)"
+          echo "=== futex_poc.c ==="
+          sudo cat /tmp/hurdroot/root/poc/futex_poc.c 2>/dev/null || echo "(no futex_poc.c)"
+          echo "=== sig_poc.c ==="
+          sudo cat /tmp/hurdroot/root/poc/sig_poc.c 2>/dev/null || echo "(no sig_poc.c)"
+          echo "=== /etc/passwd ==="
+          sudo cat /tmp/hurdroot/etc/passwd 2>/dev/null || echo "(no passwd)"
+          echo "=== /etc/shadow (hashes only) ==="
+          sudo cat /tmp/hurdroot/etc/shadow 2>/dev/null || echo "(no shadow / no perm)"
+          echo "=== grub config ==="
+          sudo find /tmp/hurdroot/boot -iname '*grub*' -exec echo {} \; -exec sudo cat {} \; 2>/dev/null || true
+          echo "=== hostname/hurd version hints ==="
+          sudo cat /tmp/hurdroot/etc/hostname 2>/dev/null || true
+          sudo cat /tmp/hurdroot/etc/debian_version 2>/dev/null || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          sudo umount /tmp/hurdroot || true
+          sudo losetup -d "$LOOPDEV" || true
