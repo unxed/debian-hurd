@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Boot the Hurd image under QEMU over a serial console and run the futex/signal PoCs."""
+import glob
+import os
 import sys
 import time
 
@@ -49,9 +51,21 @@ try:
     child.sendline("./hurdhello.bin ; echo HURDHELLO_RC_$?")
     child.expect(r"HURDHELLO_RC_\d+", timeout=60)
 
-    # Generate zerrors/ztypes/symbol report from the real headers+libc (poc/mkhurd.sh).
-    child.sendline("bash mkhurd.sh ; echo MKHURD_RC_$?")
-    child.expect(r"MKHURD_RC_\d+", timeout=1200)
+    # Go programs cross-compiled by unxed/go (poc/gotests/*.bin).
+    for path in sorted(glob.glob("poc/gotests/*.bin")):
+        name = os.path.basename(path)[:-4]
+        child.sendline(f"/root/gotests/{name}.bin ; echo GOTEST_{name}_RC_$?")
+        try:
+            child.expect(rf"GOTEST_{name}_RC_\d+", timeout=120)
+        except pexpect.TIMEOUT:
+            print(f"\n*** TIMEOUT in {name} ***", flush=True)
+            child.sendintr()
+            child.expect(PROMPT, timeout=30)
+
+    # Optional: generate zerrors/ztypes/symbol report from the real headers+libc.
+    if os.environ.get("RUN_MKHURD") == "1":
+        child.sendline("bash mkhurd.sh ; echo MKHURD_RC_$?")
+        child.expect(r"MKHURD_RC_\d+", timeout=1200)
 
     child.sendline("echo ALL_DONE_MARKER")
     child.expect("ALL_DONE_MARKER", timeout=20)

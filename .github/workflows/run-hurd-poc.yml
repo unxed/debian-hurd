@@ -1,7 +1,12 @@
 name: run-hurd-poc
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      mkhurd:
+        description: 'Also run poc/mkhurd.sh (regenerate zerrors/ztypes, symbol probe)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,6 +36,11 @@ jobs:
           sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/mkhurd.sh poc/mkztypes_hurd.c poc/Makefile /tmp/hurdroot/root/poc/
           sudo cp poc/hurdhello.bin /tmp/hurdroot/root/poc/hurdhello.bin
           sudo chmod +x /tmp/hurdroot/root/poc/hurdhello.bin
+          if ls poc/gotests/*.bin >/dev/null 2>&1; then
+            sudo mkdir -p /tmp/hurdroot/root/gotests
+            sudo cp poc/gotests/*.bin /tmp/hurdroot/root/gotests/
+            sudo chmod +x /tmp/hurdroot/root/gotests/*.bin
+          fi
 
           echo "=== searching headers for gsync ==="
           sudo grep -rn "gsync" /tmp/hurdroot/usr/include 2>/dev/null || echo "(no gsync hits)"
@@ -68,6 +78,8 @@ jobs:
           python3 .github/scripts/run_poc.py "$IMG" 2>&1 | tee /tmp/poc-transcript.log
           echo "run_poc.py exit status: ${PIPESTATUS[0]}"
         shell: bash
+        env:
+          RUN_MKHURD: ${{ inputs.mkhurd && '1' || '0' }}
 
       - name: Summarize PoC results
         if: always()
