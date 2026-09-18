@@ -97,7 +97,7 @@ try:
             child.expect(pexpect.TIMEOUT, timeout=3)
             child.send("\r")
             child.expect(r"F4_EXIT_\d+", timeout=250)         # the guest-side timeout bounds this
-        child.sendline("killall f4 2>/dev/null ; echo POST_BEGIN ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; for f in /root/f4home/.config/f4/crashes/* ; do echo \"== $f\" ; tail -50 \"$f\" ; done ; echo == debug.log ; tail -60 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
+        child.sendline("killall f4 2>/dev/null ; echo POST_BEGIN ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; for f in /root/f4home/.config/f4/crashes/* ; do echo \"== $f\" ; grep -n -m6 -E \"^fatal|^panic|^SIG|unexpected|signal\" \"$f\" ; head -45 \"$f\" ; done ; echo == debug.log ; tail -60 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
         child.expect("F4_POST_DONE", timeout=60)
 
     # Async preemption on/off comparison for a program that failed with it on.
