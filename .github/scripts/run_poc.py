@@ -9,11 +9,14 @@ import pexpect
 
 IMG = sys.argv[1]
 
+use_kvm = os.path.exists("/dev/kvm") and os.access("/dev/kvm", os.R_OK | os.W_OK) and os.environ.get("USE_KVM", "1") == "1"
+accel = "kvm -cpu host" if use_kvm else "tcg,thread=single -cpu max"
 cmd = (
-    f"qemu-system-x86_64 -m 2048 -smp 1 -no-reboot -accel tcg,thread=single "
-    f"-cpu max -drive file={IMG},format=raw,if=ide "
+    f"qemu-system-x86_64 -m 2048 -smp 1 -no-reboot -accel {accel} "
+    f"-drive file={IMG},format=raw,if=ide "
     f"-display none -serial stdio -monitor none"
 )
+print(f"KVM: {use_kvm}", flush=True)
 
 print(f"+ {cmd}", flush=True)
 child = pexpect.spawn(cmd, timeout=600, encoding="utf-8", codec_errors="replace")
@@ -71,27 +74,25 @@ try:
             print(f"\n*** TIMEOUT in {name} (guest timeout did not fire) ***", flush=True)
             break
 
-    # f4 (unxed/f4 cross-built by unxed/go hurd-f4-build): does the TUI start and quit?
+    # f4 (unxed/f4 cross-built by unxed/go hurd-f4-build): does the TUI start, run a command, quit?
     if os.path.exists("poc/f4/f4.gz"):
         child.sendline("mkdir -p /root/f4home /root/f4work && gunzip -c /root/f4/f4.gz > /root/f4/f4 && chmod +x /root/f4/f4 ; echo F4_UNPACK_$?")
         child.expect(r"F4_UNPACK_\d+", timeout=400)
-        # Diagnostics first: version, then a --debug run whose log we print.
-        child.sendline("export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work ; timeout --foreground -s KILL 30 /root/f4/f4 --version ; echo F4_VERSION_$?")
-        child.expect(r"F4_VERSION_\d+", timeout=60)
-        child.sendline("stty rows 24 cols 80 ; timeout --foreground -s KILL 25 /root/f4/f4 --debug ; echo F4_DEBUG_$? ; find /root/f4home /root/f4work -type f 2>/dev/null | head -20 ; for f in $(find /root/f4home /root/f4work -type f -name '*.log' 2>/dev/null | head -3) ; do echo \"== $f\" ; tail -60 $f ; done ; echo F4_DIAG_DONE")
-        child.expect("F4_DIAG_DONE", timeout=120)
-        child.sendline("stty rows 24 cols 80 ; export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work && timeout --foreground -s KILL 150 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
+        child.sendline("killall f4 2>/dev/null ; rm -rf /tmp/f4-sessions-0 /root/f4home/.config ; export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work ; /root/f4/f4 --version ; echo F4_VERSION_$?")
+        child.expect(r"F4_VERSION_\d+", timeout=90)
+        child.sendline("stty rows 24 cols 80 ; timeout --foreground -s KILL 240 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
+        child.expect(pexpect.TIMEOUT, timeout=45)            # let it start and draw the panels
+        child.send("echo f4-$((20+22))-ok\r")                 # command line -> terminal view -> pty -> sh
+        child.expect(pexpect.TIMEOUT, timeout=25)
+        child.send("\x1b[21~")                               # F10
         try:
-            child.expect(r"F4_EXIT_\d+", timeout=45)     # exits by itself: startup failure
+            child.expect(r"F4_EXIT_\d+", timeout=60)
         except pexpect.TIMEOUT:
-            print("\n*** f4 still running after 45s: sending F10 ***", flush=True)
-            child.send("\x1b[21~")
-            try:
-                child.expect(r"F4_EXIT_\d+", timeout=40)
-            except pexpect.TIMEOUT:
-                print("\n*** f4 did not quit on F10: Ctrl-C ***", flush=True)
-                child.send("\x03")
-                child.expect(r"F4_EXIT_\d+", timeout=120)
+            print("\n*** f4 did not quit on F10: Ctrl-C ***", flush=True)
+            child.send("\x03")
+            child.expect(r"F4_EXIT_\d+", timeout=200)
+        child.sendline("killall f4 2>/dev/null ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; ls /root/f4home/.config/f4/crashes 2>&1 | head ; tail -25 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
+        child.expect("F4_POST_DONE", timeout=60)
 
     # Async preemption on/off comparison for a program that failed with it on.
     for name in ("t_fmt", "t_exec"):
