@@ -39,7 +39,7 @@ jobs:
           echo "=== gnumach.defs gsync doc/flags ==="
           sudo sed -n '80,140p' /tmp/hurdroot/usr/include/x86_64-gnu/mach/gnumach.defs
           echo "=== GSYNC_ flag defines ==="
-          sudo grep -rn "GSYNC_" /tmp/hurdroot/usr/include/mach/ 2>/dev/null
+          sudo grep -rn "GSYNC_" /tmp/hurdroot/usr/include/ 2>/dev/null || echo "(no GSYNC_ defines found; using flags=0)"
 
           sudo cp /tmp/hurdroot/boot/grub/grub.cfg /tmp/grub.cfg.orig
           sudo chmod 644 /tmp/grub.cfg.orig
