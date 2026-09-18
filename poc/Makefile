@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-O2 -Wall -pthread
 
-all: futex_poc sig_poc io_poc segv_poc
+all: futex_poc sig_poc io_poc segv_poc abi_probe
 
 futex_poc: futex_poc.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -15,5 +15,8 @@ io_poc: io_poc.c
 segv_poc: segv_poc.c
 	$(CC) $(CFLAGS) -o $@ $<
 
+abi_probe: abi_probe.c
+	$(CC) $(CFLAGS) -o $@ $<
+
 clean:
-	rm -f futex_poc sig_poc io_poc segv_poc
+	rm -f futex_poc sig_poc io_poc segv_poc abi_probe
