@@ -98,6 +98,8 @@ $CC -x c hdr.h -E -dM 2>err.E |
 		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
 		$2 ~ /^POLL[A-Z]+$/ ||
 		$2 ~ /^AT_[A-Z_]+$/ ||
+		$2 ~ /^UTIME_(NOW|OMIT)$/ ||
+		$2 ~ /^GRND_[A-Z_]+$/ ||
 		$2 !~ "WMESGLEN" &&
 		$2 ~ /^W[A-Z0-9]+$/ {print $2}
 		{next}
@@ -283,7 +285,10 @@ static const char *syms[] = {
 	"clock_gettime", "lstat64", "stat64", "fstat64", "__xstat", "__fxstat", "__lxstat", "issetugid",
 	"pthread_create", "pthread_kill", "pthread_self", "sem_wait", "posix_spawn", "getdirentries64",
 	"login_tty", "openpty", "forkpty", "posix_openpt", "ptsname", "grantpt", "unlockpt", "ptsname_r",
-	"getaddrinfo", "getnameinfo", "res_init", "__res_init", 0
+	"getaddrinfo", "getnameinfo", "res_init", "__res_init",
+	"seteuid", "setegid", "setreuid", "setregid", "pathconf", "getpgrp", "waitid", "faccessat",
+	"symlinkat", "sigprocmask", "sigaltstack", "usleep", "sem_init", "sem_post", "sem_timedwait",
+	"getrusage", "fchmodat", "posix_spawnp", 0
 };
 
 int main(void)
