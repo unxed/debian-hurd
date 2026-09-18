@@ -8,10 +8,16 @@ on:
         required: false
         default: 'https://cdimage.debian.org/cdimage/ports/latest/hurd-amd64/debian-hurd.img.tar.gz'
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check size before downloading
         run: |
           SIZE=$(curl -sIL "${{ github.event.inputs.url }}" | grep -i content-length | tail -1 | tr -d '\r' | awk '{print $2}')
@@ -26,10 +32,31 @@ jobs:
           curl -fL --retry 3 -o image.tar.gz "${{ github.event.inputs.url }}"
           ls -lh image.tar.gz
 
-      - name: Upload artifact
+      - name: Upload artifact (fallback, недоступен мне напрямую из-за Azure-редиректа)
         uses: actions/upload-artifact@v4
         with:
           name: hurd-image
           path: image.tar.gz
           retention-days: 1
           compression-level: 0
+
+      - name: Split image into <100MB chunks
+        run: |
+          mkdir -p hurd-image-parts
+          split -b 90m image.tar.gz hurd-image-parts/part_
+          ls -la hurd-image-parts
+
+      - name: Commit chunks and open PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          BRANCH="ci/hurd-image-${{ github.run_id }}"
+          git checkout -b "$BRANCH"
+          git add hurd-image-parts
+          git commit -m "ci: add debian-hurd image chunks (run ${{ github.run_id }})"
+          git push origin "$BRANCH"
+          gh pr create --title "Add debian-hurd image artifact" \
+            --body "Автоматически загруженный образ ${{ github.event.inputs.url }}, разбит на части по 90MB для обхода лимита GitHub на размер файла." \
+            --base main --head "$BRANCH"
