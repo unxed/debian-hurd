@@ -80,7 +80,7 @@ try:
         child.expect(r"F4_UNPACK_\d+", timeout=400)
         child.sendline("killall f4 2>/dev/null ; rm -rf /tmp/f4-sessions-0 /root/f4home/.config ; export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work ; /root/f4/f4 --version ; echo F4_VERSION_$?")
         child.expect(r"F4_VERSION_\d+", timeout=90)
-        child.sendline("stty rows 24 cols 80 ; cd / ; timeout --foreground -s KILL 240 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
+        child.sendline("stty rows 24 cols 80 ; cd / ; VTUI_DEBUG=1 timeout --foreground -s KILL 240 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
         child.expect(pexpect.TIMEOUT, timeout=40)            # let it start and draw the panels
         child.send("\x1b[B\x1b[B")                          # Down, Down
         child.expect(pexpect.TIMEOUT, timeout=5)
@@ -97,7 +97,7 @@ try:
             child.expect(pexpect.TIMEOUT, timeout=3)
             child.send("\r")
             child.expect(r"F4_EXIT_\d+", timeout=250)         # the guest-side timeout bounds this
-        child.sendline("killall f4 2>/dev/null ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; ls /root/f4home/.config/f4/crashes 2>&1 | head ; tail -25 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
+        child.sendline("killall f4 2>/dev/null ; echo POST_BEGIN ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; for f in /root/f4home/.config/f4/crashes/* ; do echo \"== $f\" ; tail -50 \"$f\" ; done ; echo == debug.log ; tail -60 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
         child.expect("F4_POST_DONE", timeout=60)
 
     # Async preemption on/off comparison for a program that failed with it on.
