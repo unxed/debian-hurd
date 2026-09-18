@@ -39,7 +39,7 @@ jobs:
           if ls poc/gotests/*.bin >/dev/null 2>&1; then
             sudo mkdir -p /tmp/hurdroot/root/gotests
             sudo cp poc/gotests/*.bin /tmp/hurdroot/root/gotests/
-            sudo chmod +x /tmp/hurdroot/root/gotests/*.bin
+            sudo sh -c 'chmod +x /tmp/hurdroot/root/gotests/*.bin'
           fi
 
           echo "=== searching headers for gsync ==="
@@ -94,6 +94,8 @@ jobs:
         run: |
           python3 - <<'PYEOF'
           import base64, os, re
+          if not os.path.exists('/tmp/poc-transcript.log'):
+              raise SystemExit('no transcript')
           t = open('/tmp/poc-transcript.log', errors='replace').read().replace('\r', '')
           os.makedirs('/tmp/hurd-gen', exist_ok=True)
           n = 0
