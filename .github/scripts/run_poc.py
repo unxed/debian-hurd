@@ -80,17 +80,23 @@ try:
         child.expect(r"F4_UNPACK_\d+", timeout=400)
         child.sendline("killall f4 2>/dev/null ; rm -rf /tmp/f4-sessions-0 /root/f4home/.config ; export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work ; /root/f4/f4 --version ; echo F4_VERSION_$?")
         child.expect(r"F4_VERSION_\d+", timeout=90)
-        child.sendline("stty rows 24 cols 80 ; timeout --foreground -s KILL 240 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
-        child.expect(pexpect.TIMEOUT, timeout=45)            # let it start and draw the panels
+        child.sendline("stty rows 24 cols 80 ; cd / ; timeout --foreground -s KILL 240 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
+        child.expect(pexpect.TIMEOUT, timeout=40)            # let it start and draw the panels
+        child.send("\x1b[B\x1b[B")                          # Down, Down
+        child.expect(pexpect.TIMEOUT, timeout=5)
         child.send("echo f4-$((20+22))-ok\r")                 # command line -> terminal view -> pty -> sh
-        child.expect(pexpect.TIMEOUT, timeout=25)
-        child.send("\x1b[21~")                               # F10
+        child.expect(pexpect.TIMEOUT, timeout=20)
+        child.send("\x1b[21~")                               # F10 -> "Leave f4?" dialog
+        child.expect(pexpect.TIMEOUT, timeout=5)
+        child.send("\r")                                     # Leave
         try:
             child.expect(r"F4_EXIT_\d+", timeout=60)
         except pexpect.TIMEOUT:
-            print("\n*** f4 did not quit on F10: Ctrl-C ***", flush=True)
-            child.send("\x03")
-            child.expect(r"F4_EXIT_\d+", timeout=200)
+            print("\n*** f4 did not quit: trying again ***", flush=True)
+            child.send("\x1b[21~")
+            child.expect(pexpect.TIMEOUT, timeout=3)
+            child.send("\r")
+            child.expect(r"F4_EXIT_\d+", timeout=250)         # the guest-side timeout bounds this
         child.sendline("killall f4 2>/dev/null ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; ls /root/f4home/.config/f4/crashes 2>&1 | head ; tail -25 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
         child.expect("F4_POST_DONE", timeout=60)
 
