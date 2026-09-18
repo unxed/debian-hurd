@@ -46,6 +46,9 @@ try:
     child.sendline("./abi_probe ; echo ABI_RC_$?")
     child.expect(r"ABI_RC_\d+", timeout=120)
 
+    child.sendline("./hurdhello.bin ; echo HURDHELLO_RC_$?")
+    child.expect(r"HURDHELLO_RC_\d+", timeout=60)
+
     child.sendline("echo ALL_DONE_MARKER")
     child.expect("ALL_DONE_MARKER", timeout=20)
     time.sleep(1)
