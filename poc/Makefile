@@ -19,7 +19,7 @@ abi_probe: abi_probe.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 ctx_poc: ctx_poc.c
-	$(CC) $(CFLAGS) -o $@ $<
+	$(CC) $(CFLAGS) -O0 -fno-omit-frame-pointer -o $@ $<
 
 clean:
 	rm -f futex_poc sig_poc io_poc segv_poc abi_probe ctx_poc

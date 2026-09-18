@@ -25,14 +25,37 @@ static void redirect_target(void)
 	_exit(0);
 }
 
+/* Hurd's trampoline calls the handler with, above the return address:
+ *   sigreturn_addr, sigreturn_returns_here, return_scp  (then struct sigcontext).
+ * __sigreturn() restores from that sigcontext, NOT from the ucontext_t we are
+ * given (a copy made by fill_ucontext), so ucontext changes are lost unless
+ * they are written back. Compile with -fno-omit-frame-pointer. */
 static void handler(int sig, siginfo_t *si, void *uv)
 {
 	ucontext_t *uc = uv;
+	uintptr_t *fp = __builtin_frame_address(0);
+	char *scp = (char *)fp[4];
+	long *g = uc->uc_mcontext.gregs;
+	int off = -1, o;
+
 	handler_ran++;
+	for (o = 0; o < 1024; o += 8)
+		if (memcmp(scp + o, g, 19 * sizeof(long)) == 0) {
+			off = o;
+			break;
+		}
+	if (handler_ran == 1) {
+		char buf[160];
+		int n = snprintf(buf, sizeof buf, "CTX diag: uc-scp=%ld gregs-block-offset-in-sigcontext=%d\n",
+				 (long)((char *)uc - scp), off);
+		write(1, buf, n);
+	}
 	if (mode == 1)
-		uc->uc_mcontext.gregs[REG_RAX] = 0x1234;
+		g[REG_RAX] = 0x1234;
 	else if (mode == 2)
-		uc->uc_mcontext.gregs[REG_RIP] = (greg_t)(uintptr_t)redirect_target;
+		g[REG_RIP] = (greg_t)(uintptr_t)redirect_target;
+	if (off >= 0 && mode != 0)
+		memcpy(scp + off, g, 19 * sizeof(long)); /* write back for __sigreturn */
 }
 
 static void *killer(void *arg)
