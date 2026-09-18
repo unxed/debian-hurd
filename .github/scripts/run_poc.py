@@ -72,6 +72,11 @@ try:
             child.sendline(f"GODEBUG=asyncpreemptoff=1 timeout -s KILL 60 /root/gotests/{name}.bin 2>&1 ; echo GOTEST_{name}_nopreempt_RC_$?")
             child.expect(rf"GOTEST_{name}_nopreempt_RC_\d+", timeout=120)
 
+    # Flakiness statistics for async preemption (see poc/loop_tests.sh).
+    if os.environ.get("RUN_LOOPS") == "1":
+        child.sendline("sh /root/poc/loop_tests.sh 10")
+        child.expect("LOOPS_DONE", timeout=1500)
+
     # Optional: generate zerrors/ztypes/symbol report from the real headers+libc.
     if os.environ.get("RUN_MKHURD") == "1":
         child.sendline("bash mkhurd.sh ; echo MKHURD_RC_$?")

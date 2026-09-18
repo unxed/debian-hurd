@@ -7,6 +7,10 @@ on:
         description: 'Also run poc/mkhurd.sh (regenerate zerrors/ztypes, symbol probe)'
         type: boolean
         default: false
+      loops:
+        description: 'Run poc/loop_tests.sh (flakiness statistics)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -33,7 +37,7 @@ jobs:
           sudo mount "${LOOPDEV}p2" /tmp/hurdroot
 
           sudo mkdir -p /tmp/hurdroot/root/poc
-          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/ctx_poc.c poc/mkhurd.sh poc/mkztypes_hurd.c poc/Makefile /tmp/hurdroot/root/poc/
+          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/ctx_poc.c poc/mkhurd.sh poc/mkztypes_hurd.c poc/loop_tests.sh poc/Makefile /tmp/hurdroot/root/poc/
           sudo cp poc/hurdhello.bin /tmp/hurdroot/root/poc/hurdhello.bin
           sudo chmod +x /tmp/hurdroot/root/poc/hurdhello.bin
           if ls poc/gotests/*.bin >/dev/null 2>&1; then
@@ -80,6 +84,7 @@ jobs:
         shell: bash
         env:
           RUN_MKHURD: ${{ inputs.mkhurd && '1' || '0' }}
+          RUN_LOOPS: ${{ inputs.loops && '1' || '0' }}
 
       - name: Summarize PoC results
         if: always()
