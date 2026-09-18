@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <poll.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
@@ -47,6 +48,14 @@ int main(void) {
 #else
     printf("HOST_NAME_MAX=undefined_on_hurd\n");
 #endif
+    P(POLLIN);
+    P(POLLOUT);
+    P(POLLERR);
+    P(POLLHUP);
+    P(SS_DISABLE);
+    P(SIG_UNBLOCK);
+    P(SIG_SETMASK);
+    P(_NSIG);
     P(_SC_NPROCESSORS_ONLN);
     P(_SC_PAGESIZE);
     P(RLIMIT_AS);
