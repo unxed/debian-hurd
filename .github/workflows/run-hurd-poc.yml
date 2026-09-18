@@ -34,8 +34,12 @@ jobs:
           sudo grep -rn "gsync" /tmp/hurdroot/usr/include 2>/dev/null || echo "(no gsync hits)"
           echo "=== searching headers for semaphore ==="
           sudo grep -rln "semaphore" /tmp/hurdroot/usr/include 2>/dev/null || echo "(no semaphore hits)"
-          echo "=== mach.h relevant excerpt ==="
-          sudo find /tmp/hurdroot/usr/include -iname 'mach.h' -o -iname 'gnumach.h' 2>/dev/null
+          echo "=== gnumach.h gsync declarations ==="
+          sudo sed -n '55,115p' /tmp/hurdroot/usr/include/mach/gnumach.h
+          echo "=== gnumach.defs gsync doc/flags ==="
+          sudo sed -n '80,140p' /tmp/hurdroot/usr/include/x86_64-gnu/mach/gnumach.defs
+          echo "=== GSYNC_ flag defines ==="
+          sudo grep -rn "GSYNC_" /tmp/hurdroot/usr/include/mach/ 2>/dev/null
 
           sudo cp /tmp/hurdroot/boot/grub/grub.cfg /tmp/grub.cfg.orig
           sudo chmod 644 /tmp/grub.cfg.orig
