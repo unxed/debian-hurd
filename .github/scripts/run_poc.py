@@ -49,6 +49,10 @@ try:
     child.sendline("./hurdhello.bin ; echo HURDHELLO_RC_$?")
     child.expect(r"HURDHELLO_RC_\d+", timeout=60)
 
+    # Generate zerrors/ztypes/symbol report from the real headers+libc (poc/mkhurd.sh).
+    child.sendline("bash mkhurd.sh ; echo MKHURD_RC_$?")
+    child.expect(r"MKHURD_RC_\d+", timeout=1200)
+
     child.sendline("echo ALL_DONE_MARKER")
     child.expect("ALL_DONE_MARKER", timeout=20)
     time.sleep(1)

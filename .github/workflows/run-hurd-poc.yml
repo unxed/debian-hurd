@@ -28,7 +28,7 @@ jobs:
           sudo mount "${LOOPDEV}p2" /tmp/hurdroot
 
           sudo mkdir -p /tmp/hurdroot/root/poc
-          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/Makefile /tmp/hurdroot/root/poc/
+          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/abi_probe.c poc/mkhurd.sh poc/mkztypes_hurd.c poc/Makefile /tmp/hurdroot/root/poc/
           sudo cp poc/hurdhello.bin /tmp/hurdroot/root/poc/hurdhello.bin
           sudo chmod +x /tmp/hurdroot/root/poc/hurdhello.bin
 
@@ -76,6 +76,31 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           grep -E "RESULT:|RC_[0-9]" /tmp/poc-transcript.log >> "$GITHUB_STEP_SUMMARY" || echo "(no RESULT lines found)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Decode generated files from transcript
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import base64, os, re
+          t = open('/tmp/poc-transcript.log', errors='replace').read().replace('\r', '')
+          os.makedirs('/tmp/hurd-gen', exist_ok=True)
+          n = 0
+          for m in re.finditer(r'@@@BEGIN (\S+?)@@@\n(.*?)@@@END \1@@@', t, re.S):
+              b = re.sub(r'[^A-Za-z0-9+/=]', '', m.group(2))
+              open('/tmp/hurd-gen/' + m.group(1), 'wb').write(base64.b64decode(b))
+              n += 1
+          print('decoded', n, 'files')
+          PYEOF
+          ls -l /tmp/hurd-gen || true
+
+      - name: Upload generated files
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hurd-generated
+          path: /tmp/hurd-gen
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload full transcript
         if: always()
