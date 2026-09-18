@@ -1,0 +1,35 @@
+name: fetch-hurd-image
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'URL образа для скачивания'
+        required: false
+        default: 'https://cdimage.debian.org/cdimage/ports/latest/hurd-amd64/debian-hurd.img.tar.gz'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check size before downloading
+        run: |
+          SIZE=$(curl -sIL "${{ github.event.inputs.url }}" | grep -i content-length | tail -1 | tr -d '\r' | awk '{print $2}')
+          echo "Content-Length: ${SIZE:-unknown} bytes"
+          if [ -n "$SIZE" ] && [ "$SIZE" -gt 1900000000 ]; then
+            echo "::error::Файл крупнее 1.9GB, вероятно не влезет в лимит artifact storage. Прерываю."
+            exit 1
+          fi
+
+      - name: Download image
+        run: |
+          curl -fL --retry 3 -o image.tar.gz "${{ github.event.inputs.url }}"
+          ls -lh image.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hurd-image
+          path: image.tar.gz
+          retention-days: 1
+          compression-level: 0
