@@ -71,6 +71,23 @@ try:
             print(f"\n*** TIMEOUT in {name} (guest timeout did not fire) ***", flush=True)
             break
 
+    # f4 (unxed/f4 cross-built by unxed/go hurd-f4-build): does the TUI start and quit?
+    if os.path.exists("poc/f4/f4.gz"):
+        child.sendline("mkdir -p /root/f4home /root/f4work && gunzip -c /root/f4/f4.gz > /root/f4/f4 && chmod +x /root/f4/f4 ; echo F4_UNPACK_$?")
+        child.expect(r"F4_UNPACK_\d+", timeout=400)
+        child.sendline("stty rows 24 cols 80 ; export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work && timeout --foreground -s KILL 150 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
+        try:
+            child.expect(r"F4_EXIT_\d+", timeout=45)     # exits by itself: startup failure
+        except pexpect.TIMEOUT:
+            print("\n*** f4 still running after 45s: sending F10 ***", flush=True)
+            child.send("\x1b[21~")
+            try:
+                child.expect(r"F4_EXIT_\d+", timeout=40)
+            except pexpect.TIMEOUT:
+                print("\n*** f4 did not quit on F10: Ctrl-C ***", flush=True)
+                child.send("\x03")
+                child.expect(r"F4_EXIT_\d+", timeout=120)
+
     # Async preemption on/off comparison for a program that failed with it on.
     for name in ("t_fmt", "t_exec"):
         if os.path.exists(f"poc/gotests/{name}.bin"):
