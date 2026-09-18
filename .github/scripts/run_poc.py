@@ -28,7 +28,7 @@ try:
         child.sendline("")
         child.expect(PROMPT, timeout=30)
 
-    child.sendline("cd /root/poc && make 2>&1 ; echo MAKE_RC_$?")
+    child.sendline("cd /root/poc && make -k 2>&1 ; echo MAKE_RC_$?")
     child.expect(r"MAKE_RC_\d+", timeout=120)
 
     child.sendline("./futex_poc ; echo FUTEX_RC_$?")

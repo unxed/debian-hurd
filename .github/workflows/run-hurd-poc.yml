@@ -30,6 +30,13 @@ jobs:
           sudo mkdir -p /tmp/hurdroot/root/poc
           sudo cp poc/futex_poc.c poc/sig_poc.c poc/Makefile /tmp/hurdroot/root/poc/
 
+          echo "=== searching headers for gsync ==="
+          sudo grep -rn "gsync" /tmp/hurdroot/usr/include 2>/dev/null || echo "(no gsync hits)"
+          echo "=== searching headers for semaphore ==="
+          sudo grep -rln "semaphore" /tmp/hurdroot/usr/include 2>/dev/null || echo "(no semaphore hits)"
+          echo "=== mach.h relevant excerpt ==="
+          sudo find /tmp/hurdroot/usr/include -iname 'mach.h' -o -iname 'gnumach.h' 2>/dev/null
+
           sudo cp /tmp/hurdroot/boot/grub/grub.cfg /tmp/grub.cfg.orig
           sudo chmod 644 /tmp/grub.cfg.orig
           sed \
