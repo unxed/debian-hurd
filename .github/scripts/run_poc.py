@@ -66,6 +66,12 @@ try:
             print(f"\n*** TIMEOUT in {name} (guest timeout did not fire) ***", flush=True)
             break
 
+    # Async preemption on/off comparison for a program that failed with it on.
+    for name in ("t_fmt", "t_exec"):
+        if os.path.exists(f"poc/gotests/{name}.bin"):
+            child.sendline(f"GODEBUG=asyncpreemptoff=1 timeout -s KILL 60 /root/gotests/{name}.bin 2>&1 ; echo GOTEST_{name}_nopreempt_RC_$?")
+            child.expect(rf"GOTEST_{name}_nopreempt_RC_\d+", timeout=120)
+
     # Optional: generate zerrors/ztypes/symbol report from the real headers+libc.
     if os.environ.get("RUN_MKHURD") == "1":
         child.sendline("bash mkhurd.sh ; echo MKHURD_RC_$?")
