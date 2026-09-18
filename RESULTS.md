@@ -242,3 +242,17 @@ Linux (`GOOS=hurd GOARCH=amd64 CGO_ENABLED=1`, workflow `hurd-cross-build` в
 
 Ещё не сделано: `syscall`/`os`/`net` (пока только `runtime`), `stat`, нативный
 `gsync`-lock, `go test` рантайма.
+
+## Фаза 2 порта Go: `fmt`, `os`, файлы, pipe, горутины работают на Hurd
+
+Порт `syscall`, `internal/syscall/unix`, `internal/poll`, `os` (`unxed/go`, ветка `golang-1.26-hurd`).
+Программы `t_os`, `t_fmt`, `t_fs`, `t_rt` (`poc/gotests/*.bin`, собраны кросс-компиляцией в CI) запускаются на
+Hurd в QEMU и завершаются с кодом 0 (run-hurd-poc #35380952163): `fmt.Println/Printf`, `os.Stat/ReadFile/
+WriteFile/ReadDir/Remove/Pipe/Getwd/Hostname`, горутины, `time.Sleep`, тикеры, GC.
+
+Константы и раскладки структур сняты с реального Hurd генератором `poc/mkhurd.sh` + `poc/mkztypes_hurd.c`
+(запускается в госте; `run-hurd-poc.yml` с входом `mkhurd=true`, результат — артефакт `hurd-generated`).
+Ключевые находки: errno — Mach-коды `0x4000xxxx` (а `EKERN_*`/`EMIG_*` из `<errno.h>` — не errno);
+`getdirentries()` → `ENOSYS` (каталоги читаются через `fdopendir`/`readdir_r`); `struct stat` = 192 байта;
+`sockaddr` с `sa_len`; `UTIME_OMIT=-2`; `d_type` на ext2fs всегда `DT_UNKNOWN`. Подробности — `STATUS-HURD.md`
+в `unxed/go`.
