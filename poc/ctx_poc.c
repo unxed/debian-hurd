@@ -35,12 +35,12 @@ static void handler(int sig, siginfo_t *si, void *uv)
 	ucontext_t *uc = uv;
 	uintptr_t *fp = __builtin_frame_address(0);
 	char *scp = (char *)fp[4];
-	long *g = uc->uc_mcontext.gregs;
+	greg_t *g = uc->uc_mcontext.gregs;
 	int off = -1, o;
 
 	handler_ran++;
 	for (o = 0; o < 1024; o += 8)
-		if (memcmp(scp + o, g, 19 * sizeof(long)) == 0) {
+		if (memcmp(scp + o, g, 19 * sizeof(greg_t)) == 0) {
 			off = o;
 			break;
 		}
@@ -55,7 +55,7 @@ static void handler(int sig, siginfo_t *si, void *uv)
 	else if (mode == 2)
 		g[REG_RIP] = (greg_t)(uintptr_t)redirect_target;
 	if (off >= 0 && mode != 0)
-		memcpy(scp + off, g, 19 * sizeof(long)); /* write back for __sigreturn */
+		memcpy(scp + off, g, 19 * sizeof(greg_t)); /* write back for __sigreturn */
 }
 
 static void *killer(void *arg)
