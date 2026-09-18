@@ -57,13 +57,14 @@ try:
     # Go programs cross-compiled by unxed/go (poc/gotests/*.bin).
     for path in sorted(glob.glob("poc/gotests/*.bin")):
         name = os.path.basename(path)[:-4]
-        child.sendline(f"/root/gotests/{name}.bin ; echo GOTEST_{name}_RC_$?")
+        # `timeout` inside the guest: a hung test must not take the whole run down
+        # (Ctrl-C on our side would hit QEMU itself).
+        child.sendline(f"timeout -s KILL 60 /root/gotests/{name}.bin 2>&1 ; echo GOTEST_{name}_RC_$?")
         try:
             child.expect(rf"GOTEST_{name}_RC_\d+", timeout=120)
         except pexpect.TIMEOUT:
-            print(f"\n*** TIMEOUT in {name} ***", flush=True)
-            child.sendintr()
-            child.expect(PROMPT, timeout=30)
+            print(f"\n*** TIMEOUT in {name} (guest timeout did not fire) ***", flush=True)
+            break
 
     # Optional: generate zerrors/ztypes/symbol report from the real headers+libc.
     if os.environ.get("RUN_MKHURD") == "1":
