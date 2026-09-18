@@ -32,7 +32,11 @@ int main(void) {
     P(ITIMER_REAL);
     P(ITIMER_VIRTUAL);
     P(ITIMER_PROF);
+#ifdef HOST_NAME_MAX
     P(HOST_NAME_MAX);
+#else
+    printf("HOST_NAME_MAX=undefined_on_hurd\n");
+#endif
     P(_SC_NPROCESSORS_ONLN);
     P(_SC_PAGESIZE);
     P(RLIMIT_AS);
