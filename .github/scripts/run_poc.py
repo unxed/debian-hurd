@@ -75,6 +75,11 @@ try:
     if os.path.exists("poc/f4/f4.gz"):
         child.sendline("mkdir -p /root/f4home /root/f4work && gunzip -c /root/f4/f4.gz > /root/f4/f4 && chmod +x /root/f4/f4 ; echo F4_UNPACK_$?")
         child.expect(r"F4_UNPACK_\d+", timeout=400)
+        # Diagnostics first: version, then a --debug run whose log we print.
+        child.sendline("export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work ; timeout --foreground -s KILL 30 /root/f4/f4 --version ; echo F4_VERSION_$?")
+        child.expect(r"F4_VERSION_\d+", timeout=60)
+        child.sendline("stty rows 24 cols 80 ; timeout --foreground -s KILL 25 /root/f4/f4 --debug ; echo F4_DEBUG_$? ; find /root/f4home /root/f4work -type f 2>/dev/null | head -20 ; for f in $(find /root/f4home /root/f4work -type f -name '*.log' 2>/dev/null | head -3) ; do echo \"== $f\" ; tail -60 $f ; done ; echo F4_DIAG_DONE")
+        child.expect("F4_DIAG_DONE", timeout=120)
         child.sendline("stty rows 24 cols 80 ; export TERM=xterm-256color HOME=/root/f4home ; cd /root/f4work && timeout --foreground -s KILL 150 /root/f4/f4 ; echo F4_EXIT_$? ; cd /root/poc")
         try:
             child.expect(r"F4_EXIT_\d+", timeout=45)     # exits by itself: startup failure
