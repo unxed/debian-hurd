@@ -31,6 +31,7 @@ jobs:
           sudo cp poc/futex_poc.c poc/sig_poc.c poc/Makefile /tmp/hurdroot/root/poc/
 
           sudo cp /tmp/hurdroot/boot/grub/grub.cfg /tmp/grub.cfg.orig
+          sudo chmod 644 /tmp/grub.cfg.orig
           sed \
             -e '1i serial --unit=0 --speed=115200\nterminal_input --append serial\nterminal_output --append serial' \
             -e 's/ext2fs --readonly/ext2fs/' \
