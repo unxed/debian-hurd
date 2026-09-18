@@ -1,0 +1,72 @@
+name: run-hurd-poc
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  run-poc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Reassemble image
+        run: |
+          cat hurd-image-parts/part_* > image.tar.gz
+          tar xzf image.tar.gz
+          ls -lh *.img
+
+      - name: Inject PoC sources and patch grub for serial console + rw root
+        run: |
+          IMG=$(ls *.img)
+          echo "IMG=$IMG" >> "$GITHUB_ENV"
+          sudo losetup -fP "$IMG"
+          LOOPDEV=$(losetup -j "$IMG" | cut -d: -f1)
+          mkdir -p /tmp/hurdroot
+          sudo mount "${LOOPDEV}p2" /tmp/hurdroot
+
+          sudo mkdir -p /tmp/hurdroot/root/poc
+          sudo cp poc/futex_poc.c poc/sig_poc.c poc/Makefile /tmp/hurdroot/root/poc/
+
+          sudo cp /tmp/hurdroot/boot/grub/grub.cfg /tmp/grub.cfg.orig
+          sed \
+            -e '1i serial --unit=0 --speed=115200\nterminal_input --append serial\nterminal_output --append serial' \
+            -e 's/ext2fs --readonly/ext2fs/' \
+            -e 's/root=part:2:device:wd0/root=part:2:device:wd0 console=com0/' \
+            /tmp/grub.cfg.orig > /tmp/grub.cfg.new
+          diff -u /tmp/grub.cfg.orig /tmp/grub.cfg.new || true
+          sudo cp /tmp/grub.cfg.new /tmp/hurdroot/boot/grub/grub.cfg
+
+          sync
+          sudo umount /tmp/hurdroot
+          sudo losetup -d "$LOOPDEV"
+
+      - name: Install QEMU and pexpect
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y qemu-system-x86 python3-pexpect
+
+      - name: Boot Hurd under QEMU and run PoC over serial console
+        run: |
+          set +e
+          python3 .github/scripts/run_poc.py "$IMG" 2>&1 | tee /tmp/poc-transcript.log
+          echo "run_poc.py exit status: ${PIPESTATUS[0]}"
+        shell: bash
+
+      - name: Summarize PoC results
+        if: always()
+        run: |
+          echo "### futex_poc / sig_poc results" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "RESULT:|RC_[0-9]" /tmp/poc-transcript.log >> "$GITHUB_STEP_SUMMARY" || echo "(no RESULT lines found)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload full transcript
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hurd-poc-transcript
+          path: /tmp/poc-transcript.log
+          retention-days: 7
