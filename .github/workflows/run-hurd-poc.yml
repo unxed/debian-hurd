@@ -28,7 +28,7 @@ jobs:
           sudo mount "${LOOPDEV}p2" /tmp/hurdroot
 
           sudo mkdir -p /tmp/hurdroot/root/poc
-          sudo cp poc/futex_poc.c poc/sig_poc.c poc/Makefile /tmp/hurdroot/root/poc/
+          sudo cp poc/futex_poc.c poc/sig_poc.c poc/io_poc.c poc/segv_poc.c poc/Makefile /tmp/hurdroot/root/poc/
 
           echo "=== searching headers for gsync ==="
           sudo grep -rn "gsync" /tmp/hurdroot/usr/include 2>/dev/null || echo "(no gsync hits)"
