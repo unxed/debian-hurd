@@ -46,17 +46,10 @@ jobs:
           split -b 90m image.tar.gz hurd-image-parts/part_
           ls -la hurd-image-parts
 
-      - name: Commit chunks and open PR
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Commit chunks directly to main
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          BRANCH="ci/hurd-image-${{ github.run_id }}"
-          git checkout -b "$BRANCH"
           git add hurd-image-parts
           git commit -m "ci: add debian-hurd image chunks (run ${{ github.run_id }})"
-          git push origin "$BRANCH"
-          gh pr create --title "Add debian-hurd image artifact" \
-            --body "Автоматически загруженный образ ${{ github.event.inputs.url }}, разбит на части по 90MB для обхода лимита GitHub на размер файла." \
-            --base main --head "$BRANCH"
+          git push origin HEAD:main
