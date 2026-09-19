@@ -14,6 +14,7 @@ accel = "kvm -cpu host" if use_kvm else "tcg,thread=single -cpu max"
 cmd = (
     f"qemu-system-x86_64 -m 2048 -smp 1 -no-reboot -accel {accel} "
     f"-drive file={IMG},format=raw,if=ide "
+    f"-nic user,model={os.environ.get('NIC_MODEL', 'e1000')} "
     f"-display none -serial stdio -monitor none"
 )
 print(f"KVM: {use_kvm}", flush=True)
@@ -56,6 +57,10 @@ try:
 
     child.sendline("ls -l /dev/ptmx /dev/pts /dev/ptyp0 /dev/ttyp0 /dev/tty 2>&1 | head -12; showtrans /dev/ptyp0 /dev/ttyp0 /dev/ptmx 2>&1 | head -5; echo PTYLS_DONE")
     child.expect("PTYLS_DONE", timeout=30)
+    child.sendline("echo NET_BEGIN ; ls -l /dev/eth* /dev/netdde* /servers/socket/ 2>&1 | head -12 ; showtrans /servers/socket/2 2>&1 ; (ifconfig -a || /sbin/ifconfig -a) 2>&1 | head -20 ; cat /etc/network/interfaces 2>&1 | head -12 ; ps -ef 2>&1 | grep -iE 'pfinet|dhc|netdde|eth' | grep -v grep | head ; which nc wget curl ping 2>&1 ; echo NET_DONE")
+    child.expect("NET_DONE", timeout=60)
+    child.sendline("(wget -T5 -q -O - http://10.0.2.2:8080/ 2>&1 | head -3) ; (ping -c2 -W3 10.0.2.2 2>&1 | tail -3) ; echo NETPROBE_DONE")
+    child.expect("NETPROBE_DONE", timeout=60)
     child.sendline("free -m 2>&1 | head -3 ; swapon -s 2>&1 | head -3 ; ulimit -a 2>&1 | head -20 ; echo LIMITS_DONE")
     child.expect("LIMITS_DONE", timeout=30)
     child.sendline("timeout -s KILL 120 ./thr_poc 2>&1 ; echo THR_RC_$?")
