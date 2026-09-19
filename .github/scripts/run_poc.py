@@ -2,12 +2,29 @@
 """Boot the Hurd image under QEMU over a serial console and run the futex/signal PoCs."""
 import glob
 import os
+import subprocess
 import sys
 import time
 
 import pexpect
 
 IMG = sys.argv[1]
+
+def xenv():
+    return dict(os.environ, DISPLAY=":1")
+
+
+def xdo(*args):
+    r = subprocess.run(["xdotool", *args], env=xenv(), capture_output=True, text=True, timeout=30)
+    if r.returncode:
+        print(f"xdotool {args}: {r.stderr.strip()[:200]}", flush=True)
+
+
+def xshot(name):
+    os.makedirs("/tmp/hurd-shots", exist_ok=True)
+    r = subprocess.run(["import", "-window", "root", f"/tmp/hurd-shots/{name}.png"], env=xenv(), capture_output=True, text=True, timeout=60)
+    print(f"xshot {name}: rc={r.returncode} {r.stderr.strip()[:120]}", flush=True)
+
 
 use_kvm = os.path.exists("/dev/kvm") and os.access("/dev/kvm", os.R_OK | os.W_OK) and os.environ.get("USE_KVM", "1") == "1"
 accel = "kvm -cpu host" if use_kvm else "tcg,thread=single -cpu max"
@@ -108,6 +125,38 @@ try:
             child.expect(r"F4_EXIT_\d+", timeout=250)         # the guest-side timeout bounds this
         child.sendline("killall f4 2>/dev/null ; echo POST_BEGIN ; ls /tmp/f4-sessions-0 2>&1 | head -3 ; for f in /root/f4home/.config/f4/crashes/* ; do echo \"== $f\" ; grep -n -m6 -E \"^fatal|^panic|^SIG|unexpected|signal\" \"$f\" ; head -45 \"$f\" ; done ; echo == debug.log ; tail -60 /root/f4home/.config/f4/logs/debug.log ; echo F4_POST_DONE")
         child.expect("F4_POST_DONE", timeout=60)
+
+    # f4's X11 backend (pure Go, no FFI) drawing into Xvfb on the CI host over TCP.
+    if os.path.exists("poc/f4/f4.gz") and os.environ.get("RUN_X11", "1") == "1":
+        child.sendline("killall f4 2>/dev/null ; rm -rf /tmp/f4-sessions-0 ; export HOME=/root/f4home ; cd / ; DISPLAY=10.0.2.2:1 timeout --foreground -s KILL 240 /root/f4/f4 --gui=x11 --attached > /root/f4x.log 2>&1 ; echo F4X_EXIT_$?")
+        child.expect(pexpect.TIMEOUT, timeout=50)             # window creation + first frame
+        xshot("x11-start")
+        xdo("mousemove", "300", "200", "click", "1")           # no window manager: focus follows the pointer
+        child.expect(pexpect.TIMEOUT, timeout=3)
+        xdo("key", "F1")
+        child.expect(pexpect.TIMEOUT, timeout=8)
+        xshot("x11-help-f1")
+        xdo("key", "Escape")
+        child.expect(pexpect.TIMEOUT, timeout=3)
+        xdo("key", "Down", "Down", "Down")
+        child.expect(pexpect.TIMEOUT, timeout=3)
+        xshot("x11-cursor-down")
+        xdo("key", "F9")
+        child.expect(pexpect.TIMEOUT, timeout=4)
+        xshot("x11-menu-f9")
+        xdo("key", "Escape")
+        child.expect(pexpect.TIMEOUT, timeout=2)
+        xdo("key", "F10")
+        child.expect(pexpect.TIMEOUT, timeout=3)
+        xshot("x11-leave-dialog")
+        xdo("key", "Return")
+        try:
+            child.expect(r"F4X_EXIT_\d+", timeout=60)
+        except pexpect.TIMEOUT:
+            print("\n*** f4 (x11) did not quit; the guest-side timeout will end it ***", flush=True)
+            child.expect(r"F4X_EXIT_\d+", timeout=250)
+        child.sendline("tail -30 /root/f4x.log ; echo F4X_LOG_DONE")
+        child.expect("F4X_LOG_DONE", timeout=60)
 
     # Async preemption on/off comparison for a program that failed with it on.
     for name in ("t_fmt", "t_exec"):

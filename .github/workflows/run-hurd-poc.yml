@@ -78,7 +78,7 @@ jobs:
       - name: Install QEMU and pexpect
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y qemu-system-x86 python3-pexpect
+          sudo apt-get install -y qemu-system-x86 python3-pexpect xvfb xdotool imagemagick x11-utils
 
       - name: Enable KVM (if the runner offers it)
         run: |
@@ -92,6 +92,10 @@ jobs:
           set +e
           mkdir -p /tmp/hostweb && echo "hello from the CI host" > /tmp/hostweb/index.html
           (cd /tmp/hostweb && nohup python3 -m http.server 8080 --bind 0.0.0.0 >/tmp/hostweb.log 2>&1 &)
+          # X server on the CI host for f4's X11 backend: the guest reaches it as 10.0.2.2:1 (TCP 6001)
+          mkdir -p /tmp/hurd-shots
+          (nohup Xvfb :1 -screen 0 1024x768x24 -listen tcp -ac >/tmp/xvfb.log 2>&1 &)
+          sleep 2; DISPLAY=:1 xdpyinfo | head -3 || true
           python3 .github/scripts/run_poc.py "$IMG" 2>&1 | tee /tmp/poc-transcript.log
           echo "run_poc.py exit status: ${PIPESTATUS[0]}"
         shell: bash
@@ -132,6 +136,15 @@ jobs:
           name: hurd-generated
           path: /tmp/hurd-gen
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload X11 screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hurd-x11-shots
+          path: /tmp/hurd-shots
+          if-no-files-found: ignore
           retention-days: 14
 
       - name: Upload full transcript
