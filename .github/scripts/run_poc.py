@@ -128,7 +128,7 @@ try:
 
     # f4's X11 backend (pure Go, no FFI) drawing into Xvfb on the CI host over TCP.
     if os.path.exists("poc/f4/f4.gz") and os.environ.get("RUN_X11", "1") == "1":
-        child.sendline("killall f4 2>/dev/null ; rm -rf /tmp/f4-sessions-0 ; export HOME=/root/f4home ; cd / ; DISPLAY=10.0.2.2:1 timeout --foreground -s KILL 240 /root/f4/f4 --gui=x11 --attached > /root/f4x.log 2>&1 ; echo F4X_EXIT_$?")
+        child.sendline("killall f4 2>/dev/null ; rm -rf /tmp/f4-sessions-0 /root/f4home/.config/f4/crashes /root/f4home/.config/f4/logs ; export HOME=/root/f4home ; cd / ; VTUI_DEBUG=1 DISPLAY=10.0.2.2:1 timeout --foreground -s KILL 240 /root/f4/f4 --gui=x11 --attached > /root/f4x.log 2>&1 ; echo F4X_EXIT_$?")
         child.expect(pexpect.TIMEOUT, timeout=50)             # window creation + first frame
         xshot("x11-start")
         xdo("mousemove", "300", "200", "click", "1")           # no window manager: focus follows the pointer
@@ -155,7 +155,7 @@ try:
         except pexpect.TIMEOUT:
             print("\n*** f4 (x11) did not quit; the guest-side timeout will end it ***", flush=True)
             child.expect(r"F4X_EXIT_\d+", timeout=250)
-        child.sendline("tail -30 /root/f4x.log ; echo F4X_LOG_DONE")
+        child.sendline("tail -30 /root/f4x.log ; for f in /root/f4home/.config/f4/crashes/* ; do echo \"== $f\" ; head -40 \"$f\" ; done ; echo == debug.log ; tail -40 /root/f4home/.config/f4/logs/debug.log ; echo F4X_LOG_DONE")
         child.expect("F4X_LOG_DONE", timeout=60)
 
     # Async preemption on/off comparison for a program that failed with it on.
