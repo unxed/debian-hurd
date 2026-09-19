@@ -265,3 +265,8 @@ F10 → «Leave f4?» → код выхода 0. `poc/f4/f4.gz` — бинарн
 (BSD-pty: `/dev/ptyXN` + `/dev/ttyXN`, TIOCSCTTY работает, TIOCGPGRP на мастере — нет), `thr_poc.c`
 (стек потока по умолчанию 8 МБ committed: ~236 потоков на 2 ГБ; с 256K/64K — 400+), `ctx_poc.c`.
 Подробности — `STATUS-HURD.md` в `unxed/go`.
+
+## f4 в X11-режиме (без FFI) на Hurd (2026-09-19)
+
+`f4 --gui=x11 --attached` в госте рисует в Xvfb на хосте CI по TCP (`DISPLAY=10.0.2.2:1`; сеть QEMU user-mode, `eth0` гостя = 10.0.2.15).
+run-hurd-poc #35411660397: панели с `/` гостя, справка F1, F9, F10 → выход 0. Скриншоты — unxed/sandbox `f4-hurd/screens/`.
