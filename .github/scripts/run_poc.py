@@ -56,6 +56,10 @@ try:
 
     child.sendline("ls -l /dev/ptmx /dev/pts /dev/ptyp0 /dev/ttyp0 /dev/tty 2>&1 | head -12; showtrans /dev/ptyp0 /dev/ttyp0 /dev/ptmx 2>&1 | head -5; echo PTYLS_DONE")
     child.expect("PTYLS_DONE", timeout=30)
+    child.sendline("free -m 2>&1 | head -3 ; swapon -s 2>&1 | head -3 ; ulimit -a 2>&1 | head -20 ; echo LIMITS_DONE")
+    child.expect("LIMITS_DONE", timeout=30)
+    child.sendline("timeout -s KILL 120 ./thr_poc 2>&1 ; echo THR_RC_$?")
+    child.expect(r"THR_RC_\d+", timeout=150)
     child.sendline("timeout -s KILL 60 ./pty_poc 2>&1 ; echo PTY_RC_$?")
     child.expect(r"PTY_RC_\d+", timeout=90)
 
