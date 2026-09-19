@@ -256,3 +256,12 @@ WriteFile/ReadDir/Remove/Pipe/Getwd/Hostname`, горутины, `time.Sleep`, �
 `getdirentries()` → `ENOSYS` (каталоги читаются через `fdopendir`/`readdir_r`); `struct stat` = 192 байта;
 `sockaddr` с `sa_len`; `UTIME_OMIT=-2`; `d_type` на ext2fs всегда `DT_UNKNOWN`. Подробности — `STATUS-HURD.md`
 в `unxed/go`.
+
+## f4 запускается на Hurd (2026-09-19)
+
+`unxed/f4`, кросс-собранный из `unxed/go` (`hurd-f4-build`), работает в госте (run-hurd-poc #35409126369):
+две панели на `/`, команда из командной строки исполняется во встроенном терминале (PTY+fork/exec+bash),
+F10 → «Leave f4?» → код выхода 0. `poc/f4/f4.gz` — бинарник (stripped, gzip). Пробники: `pty_poc.c`
+(BSD-pty: `/dev/ptyXN` + `/dev/ttyXN`, TIOCSCTTY работает, TIOCGPGRP на мастере — нет), `thr_poc.c`
+(стек потока по умолчанию 8 МБ committed: ~236 потоков на 2 ГБ; с 256K/64K — 400+), `ctx_poc.c`.
+Подробности — `STATUS-HURD.md` в `unxed/go`.
